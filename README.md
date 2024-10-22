@@ -1,38 +1,86 @@
 
-# AWS Cloud Cost Optimization - Identifying Stale Resources
-## Identifying Stale EBS Snapshots
-In this example Project, we'll create a Lambda function to identify and delete unattached EBS snapshots, which are no longer associated with any active EC2 instance. This helps optimize storage costs by removing unnecessary snapshots.
+# AWS Cloud Cost Optimization - Identifying Stale EBS Snapshots
 
-### Description:
-In this Lambda function, it retrieves all EBS snapshots owned by the account and compiles a list of currently active EC2 instances, including both running and stopped instances. The function then evaluates each snapshot, focusing on those that have been inactive for at least 30 days. An **"inactive"** snapshot is defined as **one either not associated with any active volume or linked to an active volume not currently associated with any EC2 instance**. If a snapshot meets these criteria, it is deleted, facilitating the efficient management of storage costs by removing unnecessary and outdated EBS snapshots.
+## Overview
+This AWS Lambda function is designed to manage Amazon Elastic Block Store (EBS) snapshots. It automatically deletes snapshots that are not attached to any active EC2 instance or whose associated volumes have been deleted. Additionally, snapshots older than 30 days that are not associated with active volumes are also deleted.
+
+### Prerequisites
+1. **AWS Account**: You need an AWS account to deploy and run the Lambda function.
+2. **IAM Role with Permissions**: The Lambda function requires an IAM role with the following permissions:
+   - `ec2:DescribeSnapshots`
+   - `ec2:DescribeInstances`
+   - `ec2:DescribeVolumes`
+   - `ec2:DeleteSnapshot`
+   
+   Ensure the IAM role associated with the Lambda function has these permissions.
+
+3. **AWS Lambda**: You need an active Lambda function setup. This Lambda function can be invoked on a schedule using AWS CloudWatch Events to run periodically (e.g., daily).
+
+### Steps to Set Up
+
+1. **Create the Lambda Function**:
+   - Go to the [AWS Lambda Console](https://console.aws.amazon.com/lambda/).
+   - Click **Create function**.
+   - Choose **Author from scratch** and provide the necessary details such as function name and runtime (Python 3.x).
+
+2. **Add Required IAM Permissions**:
+   - Attach an IAM role with the following permissions to the Lambda function:
+     ```json
+     {
+       "Version": "2012-10-17",
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Action": [
+             "ec2:DescribeSnapshots",
+             "ec2:DescribeInstances",
+             "ec2:DescribeVolumes",
+             "ec2:DeleteSnapshot"
+           ],
+           "Resource": "*"
+         }
+       ]
+     }
+     ```
+
+3. **Deploy the Code**:
+   - Copy the Lambda function code (provided above) and paste it into the **Function code** section of the AWS Lambda console.
+   - Click **Deploy** to save the changes.
+
+4. **Set Up CloudWatch Event for Scheduling**:
+   - Navigate to the **CloudWatch Console**.
+   - In the **Events** section, create a new rule to trigger the Lambda function on a schedule (e.g., every day).
+   - Define the rate or cron expression for the schedule (e.g., `rate(1 day)`).
 
 
-## AWS Configurations Steps For This Project
 
-### Create a Lambda Function:
+## Modifying for 3-Minute Inactivity so that we can our lambda function quickly
 
-- Go to the AWS Lambda Console.
-- Click on "Create function."
-- Choose "Author from scratch."
-- Enter a name for your function (e.g., "snap-management").
-- Choose the runtime as "Python" (ensure it matches the Python version used in your code).
-- In the "Function code" section, paste your Python code.
-- Set the handler as lambda_function.lambda_handler.
+To configure the Lambda function to delete snapshots that are not attached to any EC2 instance or whose associated volumes have been deleted after **3 minutes**, follow these steps:
 
-### Adjust IAM Permissions:
+1. **Update the Time Check in the Lambda Function Code**:
+   - Modify the part of the code that checks how long a snapshot has been inactive. Instead of deleting snapshots older than 30 days, we will delete them after 3 minutes.
 
-Ensure that the Lambda function's execution role has the necessary permissions.
+2. **Code Changes**:
+   - Replace the line checking for a snapshot older than 30 days with a check for a snapshot that is older than 3 minutes. Update the relevant section of your code as follows:
 
-In your case, it needs permissions for `ec2:DescribeSnapshots`, `ec2:DescribeInstances`, `ec2:DescribeVolumes`, and `ec2:DeleteSnapshot`.
+   ```python
+   # Replace this section:
+   if datetime.utcnow() - snapshot_start_time > timedelta(days=30):
 
-### Save and Test:
+   # With this section:
+   if datetime.utcnow() - snapshot_start_time > timedelta(minutes=3):
+   ```
 
-Save your Lambda function.
-You can **manually** test the function by clicking **"Test"** in the Lambda Console.
+### Test the Lambda Function:
+   - Test the function using sample data in the **Test** section of the Lambda console.
+   - Ensure that the function executes without errors and handles snapshots and volumes correctly.
 
 
+### Notes
+- The Lambda function checks for snapshots that are not attached to any volume and deletes them. If the snapshot is associated with a volume that has been deleted, the snapshot is also deleted.
+- Snapshots older than **3 minutes** from unattached volumes are automatically deleted.
 
 ## Acknowledgments
 
 I would like to express my gratitude to my teacher, **Abhishek Veeramalla**, for his invaluable guidance and support throughout the development of this project. His expertise and dedication have been instrumental in shaping my understanding and skills. I highly recommend checking out his insightful tutorials on his YouTube channel [Abhishek Veeramalla](https://www.youtube.com/@AbhishekVeeramalla) for further learning and inspiration.
-
